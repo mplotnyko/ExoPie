@@ -122,15 +122,16 @@ class water(exoplanet):
 class envelope(exoplanet):
     def __init__(self, Mass=[1,0.001], Radius=[1,0.001], N=50000, **kwargs):
         '''
-        Envelope planet method (beta). WMF, xSi, xFe will be ignored.
+        Envelope planet method (beta). WMF, CMF, xSi, xFe will be ignored.
         The equilibrium temperature (Teq) is assumed parameter to be set. 
         '''
         super().__init__(N, Mass, Radius, **kwargs)
-        CMF = kwargs.get('CMF', [0.325,0.325])
-        self.set_CMF(a=CMF[0], b=CMF[1])
+        # CMF not implemented yet
+        # CMF = kwargs.get('CMF', [0.325,0.325]) 
+        # self.set_CMF(a=CMF[0], b=CMF[1])
         Teq = kwargs.get('Teq', [1000,100])
         self.set_Teq(mu=Teq[0], sigma=Teq[1])
-        self._save_parameters = ['Mass','Radius','AMF','CMF','Teq']
+        self._save_parameters = ['Mass','Radius','AMF','Teq']
         self.type = 'envelope'
         self.Points, self.Radius_Data = load_Data(self.type) # load interpolation fits
 
@@ -153,10 +154,10 @@ class envelope(exoplanet):
         '''
         get_R = lambda x: interpn(self.Points, self.Radius_Data, x)
         self._check(get_R)
-        args = np.asarray([self.Radius,self.Mass,self.CMF,self.Teq]).T
-        residual = lambda x,param: np.sum(param[0]-get_R(np.asarray([x[0],param[1],param[2],param[3]]).T))**2/1e-6
-        self.AMF = self._run_MC(residual,args)
-        self.FeMF,self.SiMF,self.MgMF,_,_,_ = chemistry(self.CMF,xSi=0.,xFe=0.,xWu=0.2)
+        args = np.asarray([self.Radius,self.Mass,self.Teq]).T
+        residual = lambda x,param: np.sum(param[0]-get_R(np.asarray([x[0],param[1],param[2]]).T))**2/1e-6
+        self.AMF = self._run_MC(residual,args,bounds=[[0.005,0.2]])
+        # self.FeMF,self.SiMF,self.MgMF,_,_,_ = chemistry(self.CMF,xSi=0.,xFe=0.,xWu=0.2)
     
 def get_radius(M,cmf=0.325,wmf=None,amf=None,xSi=0,xFe=0.1,Teq=1000):
     '''
@@ -197,10 +198,16 @@ def get_radius(M,cmf=0.325,wmf=None,amf=None,xSi=0,xFe=0.1,Teq=1000):
         wmf = np.asarray(wmf) if isinstance(wmf, (list, np.ndarray)) else np.full(n, wmf) # if wmf is not an array, assume the same wmf for all masses
         xi = np.asarray([wmf, M, cmf]).T
     elif amf is not None:
+        if np.any(Teq<400) or np.any(Teq>2000):
+            raise ValueError("Teq must be between 400-2000 K for envelope planets.")
+        if np.any(amf<0.005) or np.any(amf>0.2):
+            raise ValueError("amf must be between 0.005-0.2 for envelope planets.")
+        if np.any(M<0.8) or np.any(M>31):
+            raise ValueError("M must be between 0.8-31 Earth masses for envelope planets.")
         Points, Radius_Data = load_Data('envelope')
         amf = np.asarray(amf) if isinstance(amf, (list, np.ndarray)) else np.full(n, amf)
         Teq = np.asarray(Teq) if isinstance(Teq, (list, np.ndarray)) else np.full(n, Teq)
-        xi = np.asarray([amf, M, cmf, Teq]).T
+        xi = np.asarray([amf, M, Teq]).T
     else:
         Points, Radius_Data = load_Data('rocky')
         xSi = np.asarray(xSi) if isinstance(xSi, (list, np.ndarray)) else np.full(n, xSi)
@@ -225,7 +232,7 @@ def get_interior(M,R,type=None,cmf=0.325,xSi=0,xFe=0.1,Teq=1000):
         If None, the function will first try to fit a rocky planet.
     cmf: float/array
         Core mass fraction. 
-        Only used if type is 'water' or 'envelope'.
+        Only used if type is 'water'.
     xSi: float/array
         Molar fraction of silicon in the core (between 0-0.2).
         Only used if type is 'rocky'.
@@ -263,8 +270,8 @@ def get_interior(M,R,type=None,cmf=0.325,xSi=0,xFe=0.1,Teq=1000):
         args = np.asarray([R,M,cmf]).T
     elif type=='envelope':
         Points, Radius_Data = load_Data('envelope') # load interpolation fits
-        residual = lambda x,param: (param[0]-get_radius(param[1],cmf=param[2],amf=x))**2/1e-6
-        args = np.asarray([R,M,cmf,Teq]).T
+        residual = lambda x,param: (param[0]-get_radius(param[1],cmf=0.325,amf=x,Teq=param[2]))**2/1e-6
+        args = np.asarray([R,M,Teq]).T
     else:
         raise ValueError("type must be 'rocky', 'water', 'envelope' or None")
     

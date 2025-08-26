@@ -7,7 +7,7 @@ class planet_property:
     '''
     Initialize properties of a planet.
     '''
-    def __init__(self, N=50000, Mass=None, Radius=None, CMF=None, WMF=None, AMF=None, xSi=None, xFe=None):
+    def __init__(self, N=50000, Mass=None, Radius=None, CMF=None, WMF=None, AMF=None, xSi=None, xFe=None, Teq=None):
         self._N = N
         self._Mass = np.array(Mass)
         self._Radius = np.array(Radius)
@@ -16,6 +16,7 @@ class planet_property:
         self._CMF = np.array(CMF)
         self._WMF = np.array(WMF)
         self._AMF = np.array(AMF)    
+        self._Teq = np.array(Teq)
 
     @property
     def N(self):
@@ -95,7 +96,7 @@ class exoplanet(planet_property):
         Format: [mu, sigma] or [mu, sigma_up, sigma_lw] or posterior size [n].
     CMF: list
         Set rocky core mass fraction (rcmf = (1-wmf)/cmf) of the planet, 
-        only for water/envelope planets.
+        only for water planets.
         Format: [mu, sigma] or posterior size [n].
     Teq: list
         Set equilibrium temperature of the planet, only for envelope planets.
@@ -172,10 +173,16 @@ class exoplanet(planet_property):
             pos = pos & (0<=self.xSi) & (self.xSi<=0.2) & (0<=self.xFe) & (self.xFe<=0.2)
             args = np.asarray([self.Mass[pos],self.xSi[pos],self.xFe[pos]])
             xx = [1,0] # bounds for CMF
-        else:
+        elif self.type=='water':
             pos = pos & (0<=self.CMF) & (self.CMF<=1)
             args = np.asarray([self.Mass[pos],self.CMF[pos]])
-            xx = [0,1] # bounds for WMF/AMF
+            xx = [0,1] # bounds for WMF
+        elif self.type=='envelope':
+            pos = pos & (0<=self.Teq) & (self.Teq<=2000)
+            args = np.asarray([self.Mass[pos],self.Teq[pos]])
+            xx = [0.005,0.2]
+        else:
+            raise Exception("Type must be 'rocky', 'water' or 'envelope'")
             
         pos = ( (self.Radius[pos] > get_R(np.asarray([np.repeat(xx[0],self._N),*args]).T)) &
                 (self.Radius[pos] < get_R(np.asarray([np.repeat(xx[1],self._N),*args]).T)))
@@ -186,8 +193,11 @@ class exoplanet(planet_property):
         if self.type=='rocky':
             for item in  ['Mass','Radius','xSi','xFe']:
                 setattr(self, item, getattr(self, item)[pos])        
-        else:
+        elif self.type=='water':
             for item in  ['Mass','Radius','CMF']:
+                setattr(self, item, getattr(self, item)[pos])
+        elif self.type=='envelope':
+            for item in  ['Mass','Radius','Teq']:
                 setattr(self, item, getattr(self, item)[pos])
         
     def _run_MC(self,residual,args,bounds=[[0,1]],xi=0.3):
@@ -296,6 +306,6 @@ def load_Data(name):
     elif name == 'envelope':
         with open(package_dir+'/Data/MRdata_H2.pkl','rb') as f:
             Data = pickle.load(f)
-            points = [Data['AMF'],Data['Mass'],Data['CMF'],Data['Teq']]
+            points = [Data['AMF'],Data['Mass'],Data['Teq']]
             Radius = Data['Radius_total'] # tuple of radius data in Re
     return points,Radius
