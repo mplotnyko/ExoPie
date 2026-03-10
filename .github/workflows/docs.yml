@@ -17,6 +17,9 @@ jobs:
         with:
           python-version: '3.10'
 
+      - name: Install Pandoc
+        run: sudo apt-get update && sudo apt-get install -y pandoc
+
       - name: Install dependencies
         run: |
           pip install sphinx nbsphinx sphinx_rtd_theme ipython pandoc
