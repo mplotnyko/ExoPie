@@ -22,8 +22,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install sphinx nbsphinx sphinx_rtd_theme ipython pandoc
-          pip install . # Installs ExoPie so autodoc can read the docstrings
+          pip install sphinx nbsphinx sphinx_rtd_theme ipython ipykernel
+          python -m ipykernel install --user --name python3
+          pip install .
 
       - name: Build Sphinx Docs
         run: |
