@@ -1,22 +1,23 @@
-import os
 import numpy as np
 from scipy.optimize import minimize
+from exopie.tools import chemistry,_rocky_model, _water_model, _envelope_model, get_radius
+import warnings
+
 
 class planet_property:
     '''
     Initialize properties of a planet.
     '''
-    def __init__(self, N=50000, Mass=None, Radius=None, CMF=None, WMF=None, 
-                 AMF=None, xSi=None, xFe=None, xCa=None,xAl=None,xNi=None,Teq=None):
+    def __init__(self, Mass, Radius, Teq, N, CMF=None, WMF=None, AMF=None, xSi=None, xFe=None):
         self._N = N
         self._Mass = np.array(Mass)
         self._Radius = np.array(Radius)
+        self._Teq = np.array(Teq)
         self._xSi = np.array(xSi)
         self._xFe = np.array(xFe)
         self._CMF = np.array(CMF)
         self._WMF = np.array(WMF)
         self._AMF = np.array(AMF)    
-        self._Teq = np.array(Teq)
 
     @property
     def N(self):
@@ -110,6 +111,7 @@ class exoplanet(planet_property):
     xFe: list
         Set iron amount in the mantle, only for rocky planets.
         Format: [a, b] or posterior size [n].
+    
     Attributes:
     -----------
     self.AMF: array
@@ -136,17 +138,53 @@ class exoplanet(planet_property):
     Notes:
     -----
         The method for planet with H/He envelope is in beta,
-        at the moment WMF, CMF, xSi, xFe will be ignored.
+        at the moment WMF, CMF, xSi, xFe will be ignored when using 'envelope' planet type.
     '''
 
-    def __init__(self, N=50000, Mass=[1,0.001], Radius=[1,0.001], **kwargs):
+    def __init__(self, Mass, Radius, Teq, N, planet_type,**kwargs):
         N = len(Mass) if len(Mass)>3 else int(N)
         N = len(Radius) if len(Radius)>3 else int(N)      
-        super().__init__(N, Mass, Radius, **kwargs)
+        super().__init__(Mass, Radius, Teq, N, **kwargs)
         if len(Mass)<=3:
             self.set_Mass(mu=Mass[0], sigma=Mass[1:])
         if len(Radius)<=3:
             self.set_Radius(mu=Radius[0], sigma=Radius[1:])
+        # Find what planet type to use
+        if planet_type:
+            planet_type = planet_type
+        else:
+            M_test = Mass[0]+Mass[1]
+            R_test = Radius[0]
+            RTR = get_radius(M_test,cmf=0,xSi=0,xFe=0)
+            if RTR>R_test:
+                warnings.warn('Planet is inside the rocky region, using purely rocky model.')
+                planet_type = 'rocky'
+                xSi = kwargs.get('xSi', [0,0.2])
+                xFe = kwargs.get('xFe', [0,0.2])
+                self.set_xSi(a=xSi[0], b=xSi[1])
+                self.set_xFe(a=xFe[0], b=xFe[1])
+                self._save_parameters = ['Mass','Radius','CMF','xSi','xFe','FeMF','SiMF','MgMF']   
+                self._get_radius = lambda x: _rocky_model(x)
+            else:
+                warnings.warn('Planet is outside the rocky region and may include volatilies')
+                if Teq[0] > 400:
+                    warnings.warn(f'The equilibrium temperature is high (Teq~{Teq[0]:.0f}), using gaseous model')
+                    planet_type = 'envelope'
+                    # CMF not implemented yet
+                    # CMF = kwargs.get('CMF', [0.325,0.325]) 
+                    # self.set_CMF(a=CMF[0], b=CMF[1])
+                    Teq = kwargs.get('Teq', [1000,100])
+                    self.set_Teq(mu=Teq[0], sigma=Teq[1])
+                    self._save_parameters = ['Mass','Radius','AMF','Teq']
+                    self._get_radius = lambda x: _envelope_model(x)
+                else:
+                    warnings.warn(f'The equilibrium temperature is low (Teq~{Teq[0]:.0f}), using liquid water model')
+                    planet_type = 'water'
+                    CMF = kwargs.get('CMF', [0.325,0.325])
+                    self.set_CMF(a=CMF[0], b=CMF[1])
+                    self._save_parameters = ['Mass','Radius','WMF','CMF']
+                    self._get_radius = lambda x: _water_model(x)        
+        self.planet_type = planet_type
 
     def set_Mass(self, mu=1, sigma=0.001):
         self.Mass = self._set_parameter(mu,sigma)
@@ -230,14 +268,34 @@ class exoplanet(planet_property):
             for item in  ['Mass','Radius','Teq']:
                 setattr(self, item, getattr(self, item)[pos])
         
-    def _run_MC(self,residual,args,bounds=[[0,1]],xi=0.3):
+    def _run_MC(self,residual,args,bounds=[[0,1]],xi=0.3,tol=1e-8,**kwargs):
         res = []
         for i in range(self.N):
-            res.append(minimize(residual,xi,args=args[i],bounds=bounds).x)
+            res.append(minimize(residual,xi,args=args[i],bounds=bounds).x,tol=tol)
+        res = np.asarray(res).T
+        if self.planet_type=='rocky': self.CMF = res[0]
+        if self.planet_type=='water': self.WMF = res[0]
+        if self.planet_type=='envelope': self.AMF = res[0]
+
+        if self.host_star:
+            k = 0 if self.planet_type=='rocky' else 1
+            self.CMF, Xmgsi, self.xNi, self.xAl, self.xCa = res[k:]
+            
+            femf,simf,mgmf,camf,almf,nimf = chemistry(
+                self.CMF,xSi=self.xSi,xFe=self.xFe,
+                trace_core=self.xCore_trace,xNi=self.xNi,
+                xAl=self.xAl,xCa=self.xCa,xWu=0,xSiO2=0)
+            pos = self.host_star.dr_star_ratios['Mg/Si'] > mgmf / simf
+            self.xSiO2,self.xWu = np.zeros([self._N,2])
+            self.xWu = Xmgsi[pos]
+            self.xSiO2 = Xmgsi[~pos]
+
+        self.FeMF,self.SiMF,self.MgMF,self.CaMF,self.AlMF,self.NiMF = chemistry(
+                    self.CMF,xSi=self.xSi,xFe=self.xFe,
+                    trace_core=self.xCore_trace,xNi=self.xNi,
+                    xAl=self.xAl,xCa=self.xCa,xWu=self.xWu,xSiO2=self.xSiO2)
         if not isinstance(xi, (list, np.ndarray)):
             return np.asarray(res).flatten()
-        # elif len(xi)==1:
-        #     return np.asarray(res).reshape(-1,self.N).T
         else:
             return np.asarray(res)
 
@@ -291,33 +349,21 @@ class exoplanet(planet_property):
         '''
         Tabulated summary of planetary interior parameters.
         '''
-
-    # def save_data(self,filename=None):
-    #     if filename is None:
-    #         filename = 'data_run.pkl'
-    #         i=0
-    #         while os.path.exists(filename):
-    #             i+=1
-    #             filename = f'data_run_{i}.pkl'
-    #     with open(filename,'wb') as f:
-    #         dic = {}
-    #         for item in  self._save_parameters:
-    #             dic[item] = getattr(self, item)
-    #         pickle.dump(dic,f)
+        if self.planet_type=='rocky':
+            x = 'FeMF'
+        elif self.planet_type=='water':
+            x = 'WMF'
+        elif self.planet_type=='envelope':
+            x = 'AMF'
         
-
-
-class host_star(object):
-    '''
-    Ini
-    '''
-    def __init__(self,star_abundance,star_ratio,planet_data,model_param):
-        for i,item in enumerate(['Fe','Si','Mg','Ca','Al','Ni']):
-            setattr(self,item,star_abundance[i])
-        for i,item in enumerate(['Fe2Si','Fe2Mg','Mg2Si','Fe2Ni','Mg2Ca','Mg2Al']):
-            setattr(self,item,star_ratio[i])
-        for i,item in enumerate(['FeMF','SiMF','MgMF','CaMF','AlMF','NiMF']):
-            setattr(self,item,planet_data[:,i])
-        for i,item in enumerate(['CMF','xSi','xFe','xNi','xAl','xCa','xWu','xSiO2']):
-            setattr(self,item,model_param[:,i])
+        summary_table = ''
+        table = {} # 
+        for item in ['Mass', 'Radius', x, 'CMF', 'Fe/Si', 'Fe/Mg']:
+            if item == 'Fe/Mg':
+                table[item] = self.FeMF / self.MgMF
+            elif item == 'Fe/Si':
+                table[item] = self.FeMF / self.SiMF
+            else:
+                table[item] = getattr(self, f'_{item}')
+        # make pandas 
 
