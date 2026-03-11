@@ -1,9 +1,9 @@
 name: Build and Deploy Docs
 
-on:
-  push:
-    branches:
-      - main  # or 'master', depending on your default branch
+  #on:
+  #  push:
+  #    branches:
+      #      - main  # or 'master', depending on your default branch
 
 jobs:
   build-and-deploy:
