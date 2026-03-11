@@ -1,5 +1,4 @@
 import os
-import pickle
 import numpy as np
 from scipy.optimize import minimize
 
@@ -7,7 +6,8 @@ class planet_property:
     '''
     Initialize properties of a planet.
     '''
-    def __init__(self, N=50000, Mass=None, Radius=None, CMF=None, WMF=None, AMF=None, xSi=None, xFe=None, Teq=None):
+    def __init__(self, N=50000, Mass=None, Radius=None, CMF=None, WMF=None, 
+                 AMF=None, xSi=None, xFe=None, xCa=None,xAl=None,xNi=None,Teq=None):
         self._N = N
         self._Mass = np.array(Mass)
         self._Radius = np.array(Radius)
@@ -72,7 +72,7 @@ class planet_property:
 
 class exoplanet(planet_property):
     '''
-`   Calculate the interior structure parameters (CMF, Fe-MF, WMF) for a given exoplanet 
+`   Wrapper to compute the interior structure parameters (CMF, Fe-MF, WMF) for a given exoplanet 
     using the SUPEREARTH interior structure model developed by Valencia et al. (2006) 
     and updated in Plotnykov & Valencia (2020) as well as the AMF using the H2-He grid 
     based on results using CEPAM (Guillot & Morel 1995; Guillot 2010) and H-He EOS from Saumon et al. (1995).
@@ -83,8 +83,11 @@ class exoplanet(planet_property):
 
     Parameters:
     -----------
+    planet_type: str
+        The type of planet to model, can be 'rocky', 'water', or 'envelope'.
+        Default is 'rocky'.
     N: int
-        Number of samples to generate. 
+        Number of samples to generate, default is 50000. 
         If Mass or Radius posterior is given, N is set to the size [n].
     Mass: list
         Set planet's mass in Earth masses, 
@@ -107,6 +110,33 @@ class exoplanet(planet_property):
     xFe: list
         Set iron amount in the mantle, only for rocky planets.
         Format: [a, b] or posterior size [n].
+    Attributes:
+    -----------
+    self.AMF: array
+        Atmosphere mass fraction
+    self.WMF: array
+        Water mass fraction
+    self.FeMF: array
+        Iron mass fraction
+    self.CMF: array
+        Core mass fraction 
+    self.SiMF: array
+        Silicon mass fraction
+    self.MgMF: array
+        Magnesium mass fraction
+    Methods:
+    --------
+    run()
+        Executes the internal structure solver and populates 
+        compositional results.
+    corner()
+        Corner plot of selected planet interior parameters.
+    summary()
+        Tabulated summary of planetary interior parameters.
+    Notes:
+    -----
+        The method for planet with H/He envelope is in beta,
+        at the moment WMF, CMF, xSi, xFe will be ignored.
     '''
 
     def __init__(self, N=50000, Mass=[1,0.001], Radius=[1,0.001], **kwargs):
@@ -169,18 +199,18 @@ class exoplanet(planet_property):
         if sum(pos)==0:
             raise Exception('Mass out of bounds [{:.2f},{:.2f}]'.format(M_min,M_max))
         # check if parameters are in Radius bounds
-        if self.type=='rocky':
+        if self.planet_type=='rocky':
             pos = pos & (0<=self.xSi) & (self.xSi<=0.2) & (0<=self.xFe) & (self.xFe<=0.2)
             args = np.asarray([self.Mass[pos],self.xSi[pos],self.xFe[pos]])
             xx = [1,0] # bounds for CMF
-        elif self.type=='water':
+        elif self.planet_type=='water':
             pos = pos & (0<=self.CMF) & (self.CMF<=1)
             args = np.asarray([self.Mass[pos],self.CMF[pos]])
             xx = [0,1] # bounds for WMF
-        elif self.type=='envelope':
+        elif self.planet_type=='envelope':
             pos = pos & (0<=self.Teq) & (self.Teq<=2000)
             args = np.asarray([self.Mass[pos],self.Teq[pos]])
-            xx = [0.005,0.2]
+            xx = [0.005,0.2] # bounds for AMF
         else:
             raise Exception("Type must be 'rocky', 'water' or 'envelope'")
             
@@ -190,13 +220,13 @@ class exoplanet(planet_property):
         
         if self._N==0:
             raise Exception('Wrong planet type, no M-R pair in bounds')
-        if self.type=='rocky':
+        if self.planet_type=='rocky':
             for item in  ['Mass','Radius','xSi','xFe']:
                 setattr(self, item, getattr(self, item)[pos])        
-        elif self.type=='water':
+        elif self.planet_type=='water':
             for item in  ['Mass','Radius','CMF']:
                 setattr(self, item, getattr(self, item)[pos])
-        elif self.type=='envelope':
+        elif self.planet_type=='envelope':
             for item in  ['Mass','Radius','Teq']:
                 setattr(self, item, getattr(self, item)[pos])
         
@@ -211,7 +241,7 @@ class exoplanet(planet_property):
         else:
             return np.asarray(res)
 
-    def corner(self, Data=['Mass', 'Radius', 'CMF', 'FeMF', 'Fe/Si', 'Fe/Mg'], corner_data=None, 
+    def corner(self, Data=['Mass', 'Radius'], corner_data=None, 
                labels=None, bins=50, smooth=True, show_titles=True, **kwargs):
         '''
         Corner plot of the planet interior parameters.
@@ -220,7 +250,7 @@ class exoplanet(planet_property):
         -----------
         Data: list
             list of supported parameters to be plot.
-            ['Mass', 'Radius', 'CMF', 'WMF', 'FeMF', 'SiMF', 'MgMF', 'Fe/Si', 'Fe/Mg', 'xSi', 'xFe']
+            ['Mass', 'Radius', 'FeMF', 'SiMF', 'MgMF', 'CMF', 'WMF', 'AMF', 'Fe/Si', 'Fe/Mg', 'xSi', 'xFe']
         corner_data: array
             Data to plot. If None, the data will be extracted from the model.
         other: 
@@ -230,7 +260,10 @@ class exoplanet(planet_property):
         --------
         fig, axs: matplotlib figure and axis objects.
         '''
-        import corner
+        try:
+            import corner
+        except:
+            raise ImportError("corner.py is not installed. Please install it with pip install corner")
         if corner_data is None:
             data = self.__dict__
             corner_data = []
@@ -254,25 +287,29 @@ class exoplanet(planet_property):
         n = len(corner_data.T)
         axs = np.array(fig.axes).reshape((n,n))
         return fig, axs
+    def summary(self):
+        '''
+        Tabulated summary of planetary interior parameters.
+        '''
 
-    def save_data(self,filename=None):
-        if filename is None:
-            filename = 'data_run_0.pkl'
-            i=0
-            while os.path.exists(filename):
-                i+=1
-                filename = f'data_run_{i}.pkl'
-        with open(filename,'wb') as f:
-            dic = {}
-            for item in  self._save_parameters:
-                dic[item] = getattr(self, item)
-            pickle.dump(dic,f)
+    # def save_data(self,filename=None):
+    #     if filename is None:
+    #         filename = 'data_run.pkl'
+    #         i=0
+    #         while os.path.exists(filename):
+    #             i+=1
+    #             filename = f'data_run_{i}.pkl'
+    #     with open(filename,'wb') as f:
+    #         dic = {}
+    #         for item in  self._save_parameters:
+    #             dic[item] = getattr(self, item)
+    #         pickle.dump(dic,f)
         
 
 
 class host_star(object):
     '''
-    Convert stellar abundances to planet equivelent (CMF, FeMF, etc.)
+    Ini
     '''
     def __init__(self,star_abundance,star_ratio,planet_data,model_param):
         for i,item in enumerate(['Fe','Si','Mg','Ca','Al','Ni']):
@@ -284,28 +321,3 @@ class host_star(object):
         for i,item in enumerate(['CMF','xSi','xFe','xNi','xAl','xCa','xWu','xSiO2']):
             setattr(self,item,model_param[:,i])
 
-
-def load_Data(name):
-    '''
-    Load the data for the rocky and water planets to use in interpolation models.
-    '''
-    package_dir = os.path.dirname(__file__)
-    # load rocky data
-    if name == 'rocky':
-        with open(package_dir+'/Data/MRdata_rocky.pkl','rb') as f:
-            Data = pickle.load(f)
-            points = [Data['CMF'],Data['Mass'],Data['xSi'],Data['xFe']]
-            Radius = Data['Radius_total'] # tuple of radius data in Re
-    # load water data
-    elif name == 'water':
-        with open(package_dir+'/Data/MRdata_water.pkl','rb') as f:
-            Data = pickle.load(f)
-            points = [Data['WMF'],Data['Mass'],Data['CMF']]
-            Radius = Data['Radius_total'] # tuple of radius data in Re
-    # load envelope data (H2-He grid)
-    elif name == 'envelope':
-        with open(package_dir+'/Data/MRdata_H2.pkl','rb') as f:
-            Data = pickle.load(f)
-            points = [Data['AMF'],Data['Mass'],Data['Teq']]
-            Radius = Data['Radius_total'] # tuple of radius data in Re
-    return points,Radius
