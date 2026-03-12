@@ -52,16 +52,16 @@ class star:
 
     def __init__(self,Fe=[0,0.04],Mg=[0,0.04],Si=[0,0.04],prior=None,normalization=None,N=50000, **kwargs):
         self.N = N
+        Ca = kwargs.get('Ca', None)
+        Al = kwargs.get('Al', None)
+        Ni = kwargs.get('Ni', None)
+        
         if prior is None:
             prior = ['Fe/Si', 'Fe/Mg', 'Mg/Si'] 
-            Ca = kwargs.get('Ca', None)
-            Al = kwargs.get('Al', None)
-            Ni = kwargs.get('Ni', None)
             if Ca: prior += ['Ca/Mg']
             if Al: prior += ['Al/Mg']
             if Ni: prior += ['Ni/Fe']
         self.prior = prior
-        
         if normalization is None:
             # Assume Asplund 2021 solar abundances
             normalization = [7.46, 7.55, 7.51, 6.30, 6.43, 6.20]
@@ -82,17 +82,17 @@ class star:
         for i,item in enumerate(self.prior):
             self.dr_star_ratios[item] = eval(item, star.copy())
 
+
+        self.FeMF = None
         self.xSi = kwargs.get('xSi', [0,0.2])
         self.xFe = kwargs.get('xFe', [0,0.2])
         self.xCore_trace = kwargs.get('xCore_trace', 0.02)
-        
         if len(self.xSi)<=3:
             self.xSi = self._set_parameter(mu=self.xSi[0], sigma=self.xSi[1:])
         if len(self.xFe)<=3:
             self.xFe = self._set_parameter(mu=self.xFe[0], sigma=self.xFe[1:])
         
     def to_planet(self,tol=1e-8):
-
         model_param = np.zeros([self.N,8])
         planet_data = np.zeros([self.N,6])
         for i in range(self.N):
@@ -117,6 +117,45 @@ class star:
             setattr(self,item,planet_data[:,i])
         for i,item in enumerate(['CMF','xSi','xFe','xNi','xAl','xCa','xWu','xSiO2']):
             setattr(self,item,model_param[:,i])
+        return self
+
+    def __repr__(self):
+        """
+        Generates summary table of the computed parameters when the object is printed.
+        """ 
+        params_to_summarize = ['FeMF','SiMF','MgMF','CMF','xSi','xFe']
+        # Calculate convergence (percentage of successful optimizer runs)
+        # Using FeMF as the benchmark for a successful run
+        if self.FeMF is not None:
+            N_total = len(self.FeMF)
+            convergence_rate = (self.N / N_total) * 100
+            convergence_str = f"Accepted samples {N_total:.0f} out of {self.N:.0f} ({convergence_rate:.2f}%)"
+        else:
+            return "N/A (Not yet run)"
+
+        # Build the output string line by line
+        prior = ', '.join(map(str, self.prior))
+        out = [
+            f'Star to planet inference using {prior} ratios as prior, N = {self.N}',
+            f'{convergence_str}'
+        ]
+        
+        # Table Header
+        header = f"{'Param':<8} {'mean':>8} {'se_mean':>8} {'sd':>8} {'2.5%':>8} {'25%':>8} {'50%':>8} {'75%':>8} {'97.5%':>8}"
+        out.append(header)
+        out.append("-" * len(header))
+        for param in params_to_summarize:
+            if hasattr(self, param):
+                val = getattr(self, param)
+                val = val[~np.isnan(val)]
+                mean = np.mean(val)
+                sd = np.std(val)
+                se_mean = sd / np.sqrt(len(val)) # Standard error of the mean
+                q = np.percentile(val, [2.5, 25, 50, 75, 97.5])
+                row = f"{param:<8} {mean:>8.2f} {se_mean:>8.2f} {sd:>8.2f} {q[0]:>8.2f} {q[1]:>8.2f} {q[2]:>8.2f} {q[3]:>8.2f} {q[4]:>8.2f}"
+                out.append(row)
+        return "\n".join(out)
+
 
     def _minerology_residual(self,x,args):
         cmf, Xmgsi, xNi, xAl, xCa = x
@@ -145,3 +184,4 @@ class star:
         UP = np.random.normal(0,abs(sigma_up),size=N)
         LW = np.random.normal(0,abs(sigma_lw),size=N)
         return mu + np.concatenate([UP[UP>0],LW[LW<0]])
+    
