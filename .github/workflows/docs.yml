@@ -22,7 +22,7 @@ jobs:
 
       - name: Build HTML
         run: |
-          sphinx-build -b html docs/ source/ _build/html # Adjust paths as needed
+          run: sphinx-build -b html docs/source docs/build/html
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
