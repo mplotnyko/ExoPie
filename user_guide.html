@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>User Guide &#8212; ExoPie 2.0.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=686e5160" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <script src="_static/documentation_options.js?v=51b770b3"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Frequently Asked Questions" href="FAQ.html" />
+    <link rel="prev" title="Welcome to ExoPie’s documentation!" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="user-guide">
+<h1>User Guide<a class="headerlink" href="#user-guide" title="Link to this heading">¶</a></h1>
+<p>This section outlines the core components for modeling your exoplanet interiors and host stars.</p>
+<section id="planet">
+<h2>Planet<a class="headerlink" href="#planet" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="exopie.planet">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">exopie.</span></span><span class="sig-name descname"><span class="pre">planet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Mass</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[1,</span> <span class="pre">0.001]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Radius</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[1,</span> <span class="pre">0.001]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Teq</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[1000,</span> <span class="pre">10]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">N</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">planet_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exopie.planet" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">exoplanet</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="exopie.planet.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host_star</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exopie.planet.run" title="Link to this definition">¶</a></dt>
+<dd><p>Running Monte Carlo simulation of assumed planet model.</p>
+<section id="parameters">
+<h3>Parameters:<a class="headerlink" href="#parameters" title="Link to this heading">¶</a></h3>
+<blockquote>
+<div><dl class="simple">
+<dt>tol: float</dt><dd><p>Tolerance of a minimization function, when modeling interior.</p>
+</dd>
+<dt>host_star: class</dt><dd><p>Host star object with all the properties.</p>
+</dd>
+<dt>kwargs:</dt><dd><p>parameters provided to the minerology model, ignored if host_star provided.</p>
+</dd>
+</dl>
+</div></blockquote>
+</section>
+<section id="note">
+<h3>Note:<a class="headerlink" href="#note" title="Link to this heading">¶</a></h3>
+<blockquote>
+<div><ol class="arabic simple">
+<li><p>xSi and xFe parameters are only used for purely rocky model.</p></li>
+<li><p>The CMF parameter is assumed to be Rocky core mass fraction, such that rcmf = (1-wmf)/cmf.</p></li>
+<li><p>For H/He model the CMF parameter is fixed for the moment.</p></li>
+</ol>
+</div></blockquote>
+</section>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="star">
+<h2>Star<a class="headerlink" href="#star" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="exopie.star">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">exopie.</span></span><span class="sig-name descname"><span class="pre">star</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Fe</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[0,</span> <span class="pre">0.04]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Mg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[0,</span> <span class="pre">0.04]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Si</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[0,</span> <span class="pre">0.04]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prior</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalization</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">N</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50000</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exopie.star" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Wrapper to compute the planet equivelent interior given the host star elemental abundances,
+using chemical interior model that allows for all the major and minor mineralogies.
+However, for stars that have Mg/Si&lt;0.86 the planet equivelent interior switches to allow SiO2,
+which may not be as representative or real planet composition.</p>
+<section id="id1">
+<h3>Parameters:<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<dl class="simple">
+<dt>N: int</dt><dd><p>Number of samples to generate, default is 50000.</p>
+</dd>
+<dt>Fe: list</dt><dd><p>Set host star Fe abundance in dex and normalized to Sun,
+assumes normal distribution or skew normal distribution.
+Format: [mu, sigma] or [mu, sigma_up, sigma_lw] or posterior size [n].</p>
+</dd>
+<dt>Mg: list</dt><dd><p>Set host star Fe abundance in dex and normalized to Sun,
+assumes normal distribution or skew normal distribution.
+Format: [mu, sigma] or [mu, sigma_up, sigma_lw] or posterior size [n].</p>
+</dd>
+<dt>Si: list</dt><dd><p>Set host star Fe abundance in dex and normalized to Sun,
+assumes normal distribution or skew normal distribution.
+Format: [mu, sigma] or [mu, sigma_up, sigma_lw] or posterior size [n].</p>
+</dd>
+<dt>prior: list</dt><dd><p>List of refractory ratios to constrain the minerology of planet equivelent.
+Default is [‘Fe/Si’, ‘Fe/Mg’, ‘Mg/Si’],
+but if Ca, Al, Ni is defined the prior is expanded.</p>
+</dd>
+<dt>normalization: list</dt><dd><p>List of solar abundances for normalization.
+Default is Asplund 2021 solar abundances for Fe, Si, Mg, Ca, Al, Ni in log scale.</p>
+</dd>
+</dl>
+</section>
+<section id="attributes">
+<h3>Attributes:<a class="headerlink" href="#attributes" title="Link to this heading">¶</a></h3>
+<dl class="simple">
+<dt>FeMF: array</dt><dd><p>Iron mass fraction</p>
+</dd>
+<dt>SiMF: array</dt><dd><p>Silicon mass fraction</p>
+</dd>
+<dt>MgMF: array</dt><dd><p>Magnesium mass fraction</p>
+</dd>
+<dt>CMF: array</dt><dd><p>Core mass fraction</p>
+</dd>
+</dl>
+</section>
+<section id="methods">
+<h3>Methods:<a class="headerlink" href="#methods" title="Link to this heading">¶</a></h3>
+<dl class="simple">
+<dt>to_planet()</dt><dd><p>Executes the chemical model to compute the planet equivalent composition.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="exopie.star.to_planet">
+<span class="sig-name descname"><span class="pre">to_planet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-08</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exopie.star.to_planet" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+</dd></dl>
+
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">ExoPie</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">User Guide:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">User Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#planet">Planet</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#star">Star</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="FAQ.html">Frequently Asked Questions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/quickstart.html">ExoPie: Quickstart Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/planet-star.html">Copmuting Planet interior</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Welcome to ExoPie’s documentation!</a></li>
+      <li>Next: <a href="FAQ.html" title="next chapter">Frequently Asked Questions</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Mykhaylo Plotnykov.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.1.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/user_guide.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

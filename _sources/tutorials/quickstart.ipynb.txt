@@ -1,0 +1,221 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "a5d86efd-a0da-4876-b74b-111de01130e1",
+   "metadata": {},
+   "source": [
+    "# ExoPie: Quickstart Guide\n",
+    "\n",
+    "Welcome to **ExoPie**, an open-source Python library designed for modeling and simulating the interior structures of exoplanets. \n",
+    "\n",
+    "This quickstart tutorial will walk you through the basics of the library, including:\n",
+    "1. Calculating the Rocky Threshold Radius (RTR).\n",
+    "2. Modeling the interior structure of a rocky exoplanet based on its mass and radius.\n",
+    "3. Applying specific compositional constraints to the core and mantle.\n",
+    "4. Saving your models and visualizing the parameter space.\n",
+    "\n",
+    "Let's start by importing the necessary packages."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "2d956410-51fe-4990-8afc-256db509db50",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import exopie\n",
+    "import numpy as np"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "ee746bb2-f606-44c1-bc8a-a1fbea7d50b0",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Planet is inside the rocky region, using purely rocky model.\n",
+      "Using stellar prior to constrain rocky interior:\n",
+      "Mg/Si~𝒩(0.78, 0.11), \n",
+      "Planet is assumed to be rocky, using xSi and xFe to match the stellar abundances.\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "Inference for rocky, N = 83\n",
+       "Accepted samples 83 out of 100 (83.00%)\n",
+       "Param        mean  se_mean       sd     2.5%      25%      50%      75%    97.5%\n",
+       "--------------------------------------------------------------------------------\n",
+       "Mass         2.97     0.03     0.27     2.41     2.80     2.97     3.16     3.50\n",
+       "Radius       1.28     0.01     0.08     1.12     1.23     1.29     1.35     1.42\n",
+       "FeMF         0.41     0.02     0.18     0.10     0.28     0.45     0.55     0.69\n",
+       "CMF          0.46     0.03     0.23     0.09     0.24     0.47     0.67     0.82\n",
+       "xSi          0.11     0.01     0.05     0.01     0.06     0.11     0.15     0.19\n",
+       "xFe          0.09     0.01     0.06     0.00     0.03     0.07     0.15     0.20"
+      ]
+     },
+     "execution_count": 2,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "planet = exopie.planet(Mass=[3,0.3],Radius=[1.3,0.1],N=100)\n",
+    "star = exopie.star(N=100,prior=['Mg/Si'])\n",
+    "results_planet = planet.run(host_star=star)\n",
+    "results_planet"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "7b2b8fbe-befe-4e7a-9154-c39622937d64",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "Star to planet inference using Fe/Si, Fe/Mg, Mg/Si ratios as prior, N = 100\n",
+       "Accepted samples 100 out of 100 (100.00%)\n",
+       "Param        mean  se_mean       sd     2.5%      25%      50%      75%    97.5%\n",
+       "--------------------------------------------------------------------------------\n",
+       "FeMF         0.31     0.00     0.03     0.25     0.29     0.31     0.33     0.37\n",
+       "SiMF         0.19     0.00     0.02     0.17     0.18     0.19     0.20     0.23\n",
+       "MgMF         0.15     0.00     0.02     0.12     0.14     0.15     0.16     0.18\n",
+       "CMF          0.33     0.01     0.10     0.06     0.28     0.33     0.38     0.50\n",
+       "xSi          0.03     0.02     0.21    -0.45    -0.09     0.03     0.14     0.40\n",
+       "xFe          0.01     0.02     0.19    -0.32    -0.12     0.03     0.10     0.40"
+      ]
+     },
+     "execution_count": 3,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "results_star = star.to_planet()\n",
+    "results_star"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "id": "4d340ec0-0f09-4a97-ad7c-5711f44e3974",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "femf,simf,mgmf,camf,almf,nimf = exopie.chemistry(0.3,xSi=0,xFe=0,xWu=0,xSiO2=0.2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "id": "2a90f759-966d-468a-805f-d0cfb6294bc9",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0.6923460306158774"
+      ]
+     },
+     "execution_count": 20,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "mgmf / simf"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "id": "f23e9429-2453-4237-aa22-5e63d40f8b2f",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "interior_ratio_constraints=['Fe/Si','Fe/Mg','Mg/Si']"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "b42d2aaa-4943-4659-91c7-6bb8a23e26ac",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "56b27d53-6507-4a17-b173-d4845fa60d31",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "5a110ddb-4a37-4bc8-b55e-24c33f41fe8a",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import exopie\n",
+    "import numpy as np\n",
+    "\n",
+    "# find the rocky threshold radius (RTR, cmf=0) at 5 Earth masses\n",
+    "R = exopie.get_radius(5,xSi=0,xFe=0,cmf=0.)\n",
+    "print(f'Radius Threshold (at 5Me) = {R[0]:.2f} Re')\n",
+    "\n",
+    "# Find the interior of M=5 +/-0.5, R=1.4 +/-0.05 planet\n",
+    "planet = exopie.rocky(N=50000,Mass=[5,0.5],Radius=[1.4,0.05]) #model input\n",
+    "planet.run() # run the model\n",
+    "\n",
+    "print(f'CMF = {np.mean(planet.CMF):.2f}', \n",
+    "      f'FeMF = {np.mean(planet.FeMF):.2f}')\n",
+    "\n",
+    "# Case where no Si in the core (xSi=0) and no Fe in the mantle (xFe=0)\n",
+    "planet = exopie.rocky(N=50000,Mass=[5,0.5],Radius=[1.4,0.05],\n",
+    "                        xSi=[0,0],xFe=[0,0]) # model input\n",
+    "planet.run() # run the model\n",
+    "print(f'CMF = {np.mean(planet.CMF):.2f}', \n",
+    "      f'FeMF = {np.mean(planet.FeMF):.2f}')\n",
+    "\n",
+    "planet.save_data('rocky.pkl') # save the model\n",
+    "\n",
+    "\n",
+    "# To make a nice corner plot use (need corner.py)\n",
+    "# fig,axs = planet.corner()\n",
+    "\n"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.12.3"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
