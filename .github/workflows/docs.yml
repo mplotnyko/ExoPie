@@ -1,0 +1,82 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main] # Or your default branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          pip install sphinx sphinx-rtd-theme
+
+      - name: Build HTML
+        run: |
+          sphinx-build -b html docs/ source/ _build/html # Adjust paths as needed
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: _build/html # The folder the action should deploy
+  
+  
+  # upload_pypi:
+  #   needs: [tests, lint, build]
+  #   runs-on: ubuntu-latest
+  #   if: startsWith(github.ref, 'refs/tags/')
+  #   steps:
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         name: artifact
+  #         path: dist
+
+  #     - uses: pypa/gh-action-pypi-publish@v1.13.0
+  #       with:
+  #         user: __token__
+  #         password: ${{ secrets.pypi_password }}
+  deploy_docs:
+      runs-on: ubuntu-latest
+      if: github.event_name == 'push'
+      permissions:
+        contents: write
+      steps:
+        - name: Checkout Code
+          uses: actions/checkout@v4
+
+        - name: Set up Python
+          uses: actions/setup-python@v5
+          with:
+            python-version: '3.10'
+
+        - name: Install Pandoc
+          run: sudo apt-get update && sudo apt-get install -y pandoc
+
+        - name: Install dependencies
+          run: |
+            pip install sphinx nbsphinx sphinx_rtd_theme ipython ipykernel myst-parser
+            python -m ipykernel install --user --name python3
+            pip install .
+
+        - name: Build Sphinx Docs
+          run: |
+            # Using sphinx-build directly is often more reliable in CI than 'make'
+            sphinx-build -b html docs/source docs/build/html 
+
+        - name: Deploy to GitHub Pages
+          uses: peaceiris/actions-gh-pages@v3
+          with:
+            github_token: ${{ secrets.GITHUB_TOKEN }}
+            publish_dir: ./docs/build/html
+            keep_files: false
+            # This is the secret sauce for Sphinx on GitHub:
+            nojekyll: true
