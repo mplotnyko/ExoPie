@@ -3,14 +3,14 @@ User Guide
 
 This section outlines the core components for modeling your exoplanet interiors and host stars.
 
-The Planet Class
+Planet
 ----------------
 .. autoclass:: exopie.planet
    :members:
    :undoc-members:
    :show-inheritance:
 
-The Star Class
+Star
 --------------
 .. autoclass:: exopie.star
    :members:
