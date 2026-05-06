@@ -1,43 +1,59 @@
+# -*- coding: utf-8 -*-
 import os
 import sys
-# This tells Sphinx to look two folders up (the root of your repository) to find the 'exopie' package
-sys.path.insert(0, os.path.abspath('../..'))
+from importlib.metadata import PackageNotFoundError, version
 
-# Configuration file for the Sphinx documentation builder.
-#
-# For the full list of built-in configuration values, see the documentation:
-# https://www.sphinx-doc.org/en/master/usage/configuration.html
+# Path adjustment: Two levels up from docs/source/ to reach the project root
+sys.path.insert(0, os.path.abspath("../.."))
 
-# -- Project information -----------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+try:
+    __version__ = version("exopie")
+except PackageNotFoundError:
+    __version__ = "0.0.0" # Fallback if not installed
 
+# -- General configuration ---------------------------------------------------
+
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.mathjax",
+    "myst_nb",
+    "IPython.sphinxext.ipython_console_highlighting",
+]
+
+myst_enable_extensions = ["dollarmath", "colon_fence"]
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".ipynb": "myst-nb",
+    ".md": "myst-nb",
+}
+
+master_doc = "index"
 project = 'ExoPie'
 copyright = '2026, Mykhaylo Plotnykov'
 author = 'Mykhaylo Plotnykov'
-release = '2.0.0'
+version = __version__
+release = __version__
 
-# -- General configuration ---------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 
+# -- HTML output -------------------------------------------------
 
-extensions = [
-    'sphinx.ext.autodoc',  # For pulling docstrings from your code
-    'sphinx.ext.napoleon', # If you use Google or NumPy style docstrings
-    'sphinx.ext.mathjax',  # For rendering math in notebooks
-    'nbsphinx',            # The notebook converter
-    'myst_parser',         # markdown parser
-]
+html_theme = "sphinx_book_theme"
+html_title = "exopie"
+html_static_path = ["_static"] # Usually docs/source/_static/
 
-# Change the HTML theme
-html_theme = 'sphinx_rtd_theme'
+html_theme_options = {
+    "repository_url": "https://github.com/yourusername/exopie",
+    "use_repository_button": True,
+    "use_issues_button": True,
+    "use_edit_page_button": True,
+    "path_to_docs": "docs/source", # Updated to match your folder structure
+    "launch_buttons": {
+        "binderhub_url": "https://mybinder.org",
+        "notebook_interface": "jupyterlab",
+    },
+}
 
-templates_path = ['_templates']
-exclude_patterns = []
-
-
-
-# -- Options for HTML output -------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
-
-html_theme = 'alabaster'
-html_static_path = ['_static']
+nb_execution_mode = "off"

@@ -1,6 +1,5 @@
 sphinx
-nbsphinx
-sphinx_rtd_theme
+myst-nb
+sphinx-book-theme
 ipython
 ipykernel
-myst-parser
