@@ -90,18 +90,6 @@ class star(PlanetProperty):
         if 'Mg/Si' not in prior:
             self.dr_star_ratios['Mg/Si'] = self.Mg/self.Si
 
-        self.chemistry_kwargs = {
-                    'xSi': 0,
-                    'xFe': 0,
-                    'xNi': None, # set to defaults
-                    'xAl': 0,
-                    'xCa': 0,
-                    'xWu': 0,
-                    'xSiO2': 0,
-                    'trace_core': self.xCore_trace,
-                }
-        self.dr_planet = {}
-
     def _prior(self,prior):
         """
         Pre-compiles string prior into executable byte-code objects, handiling complex expressions.
@@ -154,6 +142,17 @@ class star(PlanetProperty):
 
         # Pre-fetch dictionary keys and set-up the input dic
         ratio_keys = list(self.dr_star_ratios.keys())
+        self.chemistry_kwargs = {
+                    'xSi': 0,
+                    'xFe': 0,
+                    'xNi': None, # set to defaults
+                    'xAl': 0,
+                    'xCa': 0,
+                    'xWu': 0,
+                    'xSiO2': 0,
+                    'trace_core': self.xCore_trace,
+                }
+        self.dr_planet = {}
         trace_keys = ['xNi', 'xAl', 'xCa', 'xWu', 'xSiO2']
 
         for i in range(self._N):
@@ -181,4 +180,3 @@ class star(PlanetProperty):
         for i,item in enumerate(['CMF',*trace_keys]):
             setattr(self,item,model_param[:,i])
         self._N = np.sum(~np.isnan(planet_data[:, 0])) # Count successful runs
-        return self

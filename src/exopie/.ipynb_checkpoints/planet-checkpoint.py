@@ -132,31 +132,29 @@ class planet(PlanetProperty):
                 bounds=[]
             xi+=[0.325,0.2]
             bounds+=[[1e-15,1-1e-15],[1e-15,0.5]]
+
             for flag, key in self.host_star.trace_mapping:
                 if flag:
-                    x0.append(0.0)
+                    xi.append(0.0)
                     bounds.append((0.0, 2.0))
-            self.host_star.chemistry_kwargs
-            
         
         args = np.asarray([self.Radius,self.Mass,self.CMF,self.Teq,self.xSi,self.xFe]).T
         self._run_MC(self._residual,args,xi=xi,bounds=bounds,tol=tol,**kwargs)
         return self        
 
     def _residual(self,x,args):
-        R,M,CMF,Teq,xSi,xFe,star_ratios = args     
+        R,M,CMF,Teq,xSi,xFe,star_ratios = args
         
         if self.stellar_prior:
             k = 0 if self.planet_type=='rocky' else 1
-            X = x[k:]
-            self.host_star.chemistry_kwargs['xSi'] = xSi
-            self.host_star.chemistry_kwargs['xFe'] = xFe
-            chem_residual = self.host_star._minerology_residual(X,star_ratios)
+            self.host_star.chemistry_kwargs['xSi'] = self.xSi[i]
+            self.host_star.chemistry_kwargs['xFe'] = self.xFe[i]
+            chem_residual = self.host_star._minerology_residual(x[k:],star_ratios)
         else:
             chem_residual = 0            
 
         if self.planet_type=='rocky':
-            radius_residual = lambda x: np.sum(R-self._get_radius(np.asarray([x,M,xSi,xFe]).T))**2/1e-6  
+            radius_residual = lambda x: np.sum(R-self._get_radius(np.asarray([x,M,xSi,xFe]).T))**2/1e-6    
         elif self.planet_type=='water':
             radius_residual = lambda x: np.sum(R-self._get_radius(np.asarray([x,M,CMF]).T))**2/1e-6    
         elif self.planet_type=='envelope':
