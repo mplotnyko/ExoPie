@@ -163,6 +163,7 @@ def get_radius(M,cmf=0.325,wmf=None,amf=None,xSi=0,xFe=0.1,Teq=1000):
     M = np.asarray(M) if isinstance(M, (list, np.ndarray)) else np.array([M])
     n = len(M)    
     cmf = np.asarray(cmf) if isinstance(cmf, (list, np.ndarray)) else np.full(n, cmf)
+    Teq = np.asarray(Teq) if isinstance(Teq, (list, np.ndarray)) else np.full(n, Teq)
     if wmf is not None:
         radius_interpolation = _water_model
         wmf = np.asarray(wmf) if isinstance(wmf, (list, np.ndarray)) else np.full(n, wmf) # if wmf is not an array, assume the same wmf for all masses
@@ -176,13 +177,16 @@ def get_radius(M,cmf=0.325,wmf=None,amf=None,xSi=0,xFe=0.1,Teq=1000):
             raise ValueError("M must be between 0.8-31 Earth masses for envelope planets.")
         radius_interpolation = _envelope_model
         amf = np.asarray(amf) if isinstance(amf, (list, np.ndarray)) else np.full(n, amf)
-        Teq = np.asarray(Teq) if isinstance(Teq, (list, np.ndarray)) else np.full(n, Teq)
         xi = np.asarray([amf, M, Teq]).T
     else:
-        radius_interpolation = _rocky_model
-        xSi = np.asarray(xSi) if isinstance(xSi, (list, np.ndarray)) else np.full(n, xSi)
-        xFe = np.asarray(xFe) if isinstance(xFe, (list, np.ndarray)) else np.full(n, xFe)
-        xi = np.asarray([cmf, M, xSi, xFe]).T
+        if np.any(Teq>2000):
+            radius_interpolation = _melt_model
+            xi = np.asarray([cmf, M, Teq]).T
+        else:
+            radius_interpolation = _rocky_model
+            xSi = np.asarray(xSi) if isinstance(xSi, (list, np.ndarray)) else np.full(n, xSi)
+            xFe = np.asarray(xFe) if isinstance(xFe, (list, np.ndarray)) else np.full(n, xFe)
+            xi = np.asarray([cmf, M, xSi, xFe]).T
 
     result = radius_interpolation(xi)
     return result if isinstance(M, (list, np.ndarray)) else result[0]
@@ -340,6 +344,12 @@ def load_Data(name):
             Data = pickle.load(f)
             points = [Data['CMF'],Data['Mass'],Data['xSi'],Data['xFe']]
             Radius = Data['Radius_total'] # tuple of radius data in Re
+    # load MO data, for molten mantle
+    elif name == 'melt':
+        with open(package_dir+'/Data/MRdata_H2.pkl','rb') as f:
+            Data = pickle.load(f)
+            points = [Data['AMF'],Data['Mass'],Data['Teq']]
+            Radius = Data['Radius_total'] # tuple of radius data in Re
     # load water data
     elif name == 'water':
         with open(package_dir+'/Data/MRdata_water.pkl','rb') as f:
@@ -352,6 +362,7 @@ def load_Data(name):
             Data = pickle.load(f)
             points = [Data['AMF'],Data['Mass'],Data['Teq']]
             Radius = Data['Radius_total'] # tuple of radius data in Re
+    
     return points,Radius
 
 _DATA_STORE = {}
@@ -362,5 +373,6 @@ def get_cached_data(data_type):
     return _DATA_STORE[data_type]
 
 _rocky_model = RegularGridInterpolator(*get_cached_data('rocky'))
+_melt_model = RegularGridInterpolator(*get_cached_data('envelope'))
 _water_model = RegularGridInterpolator(*get_cached_data('water'))
 _envelope_model = RegularGridInterpolator(*get_cached_data('envelope'))

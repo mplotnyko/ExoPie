@@ -159,7 +159,7 @@ class planet(PlanetProperty):
             radius_residual = lambda x: np.sum(R-self._get_radius(np.asarray([x,M,xSi,xFe]).T))**2/1e-6  
         elif self.planet_type=='water':
             radius_residual = lambda x: np.sum(R-self._get_radius(np.asarray([x,M,CMF]).T))**2/1e-6    
-        elif self.planet_type=='envelope':
+        elif self.planet_type=='envelope' or self.planet_type=='melt':
             radius_residual = lambda x: np.sum(R-self._get_radius(np.asarray([x,M,Teq]).T))**2/1e-6    
         
         return radius_residual(x[0]) + chem_residual

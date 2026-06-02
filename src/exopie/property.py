@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import minimize
-from exopie.tools import chemistry,_rocky_model, _water_model, _envelope_model, get_radius, get_cached_data
+from exopie.tools import chemistry,_rocky_model, _melt_model, _water_model, _envelope_model, get_radius, get_cached_data
 from exopie.struct import PlanetStruct
 import warnings
 
@@ -33,6 +33,8 @@ class PlanetProperty(PlanetStruct):
             self._get_radius = lambda x: _water_model(x)
         elif planet_type == 'rocky':
             self._get_radius = lambda x: _rocky_model(x)
+        elif planet_type == 'melt':
+            self._get_radius = lambda x: _melt_model(x)
         elif planet_type == 'star':
             self._get_radius = lambda x: _rocky_model(x)
         else:
