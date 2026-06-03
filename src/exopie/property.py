@@ -14,10 +14,14 @@ class PlanetProperty(PlanetStruct):
         if planet_type is None:
             M_test = Mass[0]+Mass[1]
             R_test = Radius[0]
-            RTR = get_radius(M_test,cmf=0,xSi=0,xFe=0)
+            RTR = get_radius(M_test,cmf=0,xSi=0,xFe=0,Teq=max(Teq))
             if RTR>R_test:
-                print('Planet is inside the rocky region, using purely rocky model.')
-                planet_type = 'rocky'
+                print('Planet is inside the rocky region ',end='')
+                if np.mean(Teq)>2000:
+                    print('and surface temperature is above melting, using MO model')
+                else:
+                    print('and surface temperature is below melting, using purely rocky model')
+                    planet_type = 'rocky'
             else:
                 print('Planet is outside the rocky region and may include volatilies')
                 if np.mean(self.Teq) > 400:
@@ -27,22 +31,8 @@ class PlanetProperty(PlanetStruct):
                 else:
                     print(f'The equilibrium temperature is low (Teq~{Teq[0]:.0f}), using liquid water model')
                     planet_type = 'water'
-        if planet_type == 'envelope':
-            self._get_radius = lambda x: _envelope_model(x)
-        elif planet_type == 'water':
-            self._get_radius = lambda x: _water_model(x)
-        elif planet_type == 'rocky':
-            self._get_radius = lambda x: _rocky_model(x)
-        elif planet_type == 'melt':
-            self._get_radius = lambda x: _melt_model(x)
-        elif planet_type == 'star':
-            self._get_radius = lambda x: _rocky_model(x)
-        else:
-            warnings.warn('Planet type not in the list, using purely rocky casse')
-            planet_type = 'rocky'
-            self._get_radius = lambda x: _rocky_model(x)
         self.planet_type = planet_type
-
+    
     def __repr__(self):
         # Calls the summary function when the object is printed.
         if self.planet_type=='rocky':
@@ -57,6 +47,24 @@ class PlanetProperty(PlanetStruct):
             params_to_summarize = ['FeMF', 'CMF']
         return self.summary(params_to_summarize)
 
+    def _get_radius(self,M=1,CMF=0.325,AMF=0,WMF=0,Teq=2000,xSi=0,xFe=0):
+    
+        model_specs = {
+            'rocky': (_rocky_model, np.column_stack([CMF, M, xSi, xFe])),
+            'star': (_rocky_model, np.column_stack([CMF, M, xSi, xFe])),
+            'melt': (_melt_model, np.column_stack([CMF, M, Teq])),
+            'water': (_water_model, np.column_stack([WMF, M, Teq])),
+            'envelope': (_envelope_model, np.column_stack([AMF, M, Teq])),
+        }
+        try:
+            model, point = model_specs[self.planet_type]
+        except KeyError:
+            warnings.warn(
+                f'Planet type {self.planet_type} not in the list, using purely rocky case'
+            )
+            model, point = _rocky_model, np.column_stack([CMF, M, xSi, xFe])
+        return model(point)
+        
     def _test(self):
         # check if parameters are accepted by the model.
         if (self.Mass==None).any():
@@ -66,45 +74,46 @@ class PlanetProperty(PlanetStruct):
         if len(self.Mass) != len(self.Radius):
             raise Exception('Mass and Radius must be of same length.')
     
-    def _check(self,get_R):
+    def _check(self):
         self._test()
         # check if parameters are in Mass bounds 
         Points,_ = get_cached_data(self.planet_type)
-        M_min,M_max = min(Points[1]), max(Points[1])
+        M_min,M_max = Points[1].min(),Points[1].max()
         pos = (self.Mass>M_min) & (self.Mass<M_max)
         if sum(pos)==0:
             raise Exception('Mass out of bounds [{:.2f},{:.2f}]'.format(M_min,M_max))
-        # check if parameters are in Radius bounds
-        if self.planet_type=='rocky':
-            pos = pos & (0<=self.xSi) & (self.xSi<=0.2) & (0<=self.xFe) & (self.xFe<=0.2)
-            args = np.asarray([self.Mass[pos],self.xSi[pos],self.xFe[pos]])
-            xx = [1,0] # bounds for CMF
-        elif self.planet_type=='water':
-            pos = pos & (0<=self.CMF) & (self.CMF<=1)
-            args = np.asarray([self.Mass[pos],self.CMF[pos]])
-            xx = [0,1] # bounds for WMF
+        
+        # check if parameters are in model parameter space
+        pos &= (0 <= self.xSi) & (self.xSi <= 0.2)
+        pos &= (0 <= self.xFe) & (self.xFe <= 0.2)
+        pos &= (0<=self.CMF) & (self.CMF<=1)
+        if self.planet_type=='melt':
+            pos &= (2000<=self.Teq) & (self.Teq<=4000)    
         elif self.planet_type=='envelope':
-            pos = pos & (0<=self.Teq) & (self.Teq<=2000)
-            args = np.asarray([self.Mass[pos],self.Teq[pos]])
-            xx = [0.005,0.2] # bounds for AMF
-        else:
-            raise Exception("Type must be 'rocky', 'water' or 'envelope'")
-        
-        try:
-            pos = ( (self.Radius[pos] > get_R(np.asarray([np.repeat(xx[0],self._N),*args]).T)) &
-                (self.Radius[pos] < get_R(np.asarray([np.repeat(xx[1],self._N),*args]).T)))
-        except:
-            raise Exception('The provided M-R pair is outside the model range. Try again or switch to a different planet type.')
-        
+            pos &= (0<=self.Teq) & (self.Teq<=2000)        
+        M,CMF,xSi,xFe,Teq = self.Mass[pos],self.CMF[pos],self.xSi[pos],self.xFe[pos],self.Teq[pos]
         self._N = sum(pos)
         
+        try: # check which radii values are bounded
+            if self.planet_type=='melt' or self.planet_type=='rocky':
+                CMF_bound1,CMF_bound2 = np.repeat(1,self._N),np.repeat(0,self._N)
+            else:
+                CMF_bound1,CMF_bound2 = CMF, CMF
+            R_min = self._get_radius(M=M,CMF=CMF_bound1,AMF=np.repeat(0.005,self._N),
+                    WMF=np.repeat(0,self._N),Teq=Teq,xSi=xSi,xFe=xFe)
+            R_max = self._get_radius(M=M,CMF=CMF_bound2,AMF=np.repeat(0.2,self._N),
+                    WMF=np.repeat(1,self._N),Teq=Teq,xSi=xSi,xFe=xFe)
+            pos = (self.Radius[pos] > R_min) & (self.Radius[pos] < R_max) 
+            self._N = sum(pos)
+        except:
+            raise Exception('The provided M-R pair is outside the model range. Try again or switch to a different planet type.')
+                
         if self._N/self.N_total<0.1:
             warnings.warn('The number of accepted samples is less than 10% of the total samples. Consider switching a different planet type.')
         if self._N==0:
             raise Exception('Wrong planet type, no M-R pair in bounds')
-        for item in  ['Mass','Radius','CMF','Teq','xSi','xFe']:
+        for item in  ['Mass','Radius','CMF','AMF','WMF','Teq','xSi','xFe']:
             setattr(self, item, getattr(self, item)[pos])
-
 
     def _run_MC(self,residual,args,bounds=[[0,1]],xi=0.3,tol=1e-8):
         res = []

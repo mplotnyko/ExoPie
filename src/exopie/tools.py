@@ -338,31 +338,27 @@ def load_Data(name):
     Load the data for the rocky and water planets to use in interpolation models.
     '''
     package_dir = os.path.dirname(__file__)
-    # load rocky data
-    if name == 'rocky':
+    if name == 'rocky': # load rocky data
         with open(package_dir+'/Data/MRdata_rocky.pkl','rb') as f:
             Data = pickle.load(f)
             points = [Data['CMF'],Data['Mass'],Data['xSi'],Data['xFe']]
-            Radius = Data['Radius_total'] # tuple of radius data in Re
-    # load MO data, for molten mantle
-    elif name == 'melt':
-        with open(package_dir+'/Data/MRdata_H2.pkl','rb') as f:
+    elif name == 'melt': # load MO data, for molten mantle
+        with open(package_dir+'/Data/MRdata_melt.pkl','rb') as f:
             Data = pickle.load(f)
-            points = [Data['AMF'],Data['Mass'],Data['Teq']]
-            Radius = Data['Radius_total'] # tuple of radius data in Re
-    # load water data
-    elif name == 'water':
+            points = [Data['CMF'],Data['Mass'],Data['Teq']]
+    elif name == 'water': # load water data
         with open(package_dir+'/Data/MRdata_water.pkl','rb') as f:
             Data = pickle.load(f)
             points = [Data['WMF'],Data['Mass'],Data['CMF']]
-            Radius = Data['Radius_total'] # tuple of radius data in Re
-    # load envelope data (H2-He grid)
-    elif name == 'envelope':
+    elif name == 'envelope': # load envelope data (H2-He grid)
         with open(package_dir+'/Data/MRdata_H2.pkl','rb') as f:
             Data = pickle.load(f)
             points = [Data['AMF'],Data['Mass'],Data['Teq']]
-            Radius = Data['Radius_total'] # tuple of radius data in Re
-    
+            # implement CMF as a parameter as well
+            # points = [Data['AMF'],Data['Mass'],Data['CMF'],Data['Teq']]
+    else:
+        raise Exception(f"Model {name} is not supported, try one of the following ['rocky','melt','water','envelope']")
+    Radius = Data['Radius_total'] # tuple of radius data in Re
     return points,Radius
 
 _DATA_STORE = {}
@@ -373,6 +369,7 @@ def get_cached_data(data_type):
     return _DATA_STORE[data_type]
 
 _rocky_model = RegularGridInterpolator(*get_cached_data('rocky'))
-_melt_model = RegularGridInterpolator(*get_cached_data('envelope'))
+_melt_model = RegularGridInterpolator(*get_cached_data('melt'))
 _water_model = RegularGridInterpolator(*get_cached_data('water'))
 _envelope_model = RegularGridInterpolator(*get_cached_data('envelope'))
+

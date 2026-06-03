@@ -75,7 +75,7 @@ class planet(PlanetProperty):
 
     def __init__(self, Mass=[1,0.001], Radius=[1,0.001], Teq=[1000,10],  N=50000, planet_type=None, **kwargs):
         super().__init__(Mass, Radius, Teq, N, planet_type, **kwargs)
-
+        
     def run(self,tol=1e-8,host_star=None,**kwargs):
         '''
         Running Monte Carlo simulation of assumed planet model.
@@ -94,7 +94,7 @@ class planet(PlanetProperty):
             2. The CMF parameter is assumed to be Rocky core mass fraction, such that rcmf = (1-wmf)/cmf.
             3. For H/He model the CMF parameter is fixed for the moment.
         ''' 
-        self._check(self._get_radius)
+        self._check()
         if host_star:
             print('Using stellar prior to constrain rocky interior:')
             for item in host_star.prior:
@@ -139,12 +139,12 @@ class planet(PlanetProperty):
             self.host_star.chemistry_kwargs
             
         
-        args = np.asarray([self.Radius,self.Mass,self.CMF,self.Teq,self.xSi,self.xFe]).T
+        args = np.asarray([self.Radius,self.Mass,self.CMF,self.WMF,self.AMF,self.Teq,self.xSi,self.xFe]).T
         self._run_MC(self._residual,args,xi=xi,bounds=bounds,tol=tol,**kwargs)
         return self        
 
     def _residual(self,x,args):
-        R,M,CMF,Teq,xSi,xFe,star_ratios = args     
+        R,M,CMF,WMF,AMF,Teq,xSi,xFe,star_ratios = args     
         
         if self.stellar_prior:
             k = 0 if self.planet_type=='rocky' else 1
@@ -155,11 +155,14 @@ class planet(PlanetProperty):
         else:
             chem_residual = 0            
 
-        if self.planet_type=='rocky':
-            radius_residual = lambda x: np.sum(R-self._get_radius(np.asarray([x,M,xSi,xFe]).T))**2/1e-6  
+        if self.planet_type=='rocky' or self.planet_type=='melt':
+            CMF = x[0]
         elif self.planet_type=='water':
-            radius_residual = lambda x: np.sum(R-self._get_radius(np.asarray([x,M,CMF]).T))**2/1e-6    
-        elif self.planet_type=='envelope' or self.planet_type=='melt':
-            radius_residual = lambda x: np.sum(R-self._get_radius(np.asarray([x,M,Teq]).T))**2/1e-6    
+            WMF = x[0]
+        elif self.planet_type=='envelope':
+            AMF = x[0]
+        else:
+            raise Exception(f"Model {name} is not supported, try one of the following ['rocky','melt','water','envelope']")
         
-        return radius_residual(x[0]) + chem_residual
+        return (self._get_radius(M=M,CMF=CMF,AMF=AMF,WMF=WMF,
+                                 Teq=Teq,xSi=xSi,xFe=xFe)-R)**2/1e-6 + chem_residual

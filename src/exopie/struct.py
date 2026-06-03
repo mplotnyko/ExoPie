@@ -20,8 +20,8 @@ class PlanetStruct:
         self.xSi = self._set_parameter(a=xSi[0], b=xSi[1], distribution='uniform') if np.size(xSi) == 2 else np.array(xSi)
         self.xFe = self._set_parameter(a=xFe[0], b=xFe[1], distribution='uniform') if np.size(xFe) == 2 else np.array(xFe)
         
-        self.WMF = np.array(WMF) if WMF is not None else None
-        self.AMF = np.array(AMF) if AMF is not None else None
+        self.WMF = np.array(WMF) if WMF is not None else np.zeros(self._N)
+        self.AMF = np.array(AMF) if AMF is not None else np.zeros(self._N)
         
         # Initialize Kwargs 
         # Trace mineralogy
